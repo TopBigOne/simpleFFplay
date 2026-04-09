@@ -10,11 +10,11 @@
  *   2023-05-17 - [piaodazhu]     Fix: audio cannot be paused
  *   2023-05-16 - [piaodazhu]     Fix: cannot normally quit
  *   2023-05-16 - [piaodazhu]     Fix: AVPacketList is deprecated
- * 
+ *
  *   2018-11-27 - [lei]     Create file: a simplest ffmpeg player
  *   2018-12-01 - [lei]     Playing audio
  *   2018-12-06 - [lei]     Playing audio&vidio
- *   2019-01-06 - [lei]     Add audio resampling, fix bug of unsupported audio 
+ *   2019-01-06 - [lei]     Add audio resampling, fix bug of unsupported audio
  *                          format(such as planar)
  *   2019-01-16 - [lei]     Sync video to audio.
  *
@@ -25,16 +25,16 @@
  *   ffplay.c in FFmpeg 4.1 project.
  *******************************************************************************/
 
-#include <stdio.h>
-#include <stdbool.h>
 #include <assert.h>
+#include <stdbool.h>
+#include <stdio.h>
 
-#include "player.h"
+#include "audio.h"
+#include "demux.h"
 #include "frame.h"
 #include "packet.h"
-#include "demux.h"
+#include "player.h"
 #include "video.h"
-#include "audio.h"
 
 static player_stat_t *player_init(const char *p_input_file);
 static int player_deinit(player_stat_t *is);
@@ -53,7 +53,7 @@ double get_clock(play_clock_t *c)
     else
     {
         double time = av_gettime_relative() / 1000000.0;
-        double ret = c->pts_drift + time;   // 展开得： c->pts + (time - c->last_updated)
+        double ret = c->pts_drift + time; // 展开得： c->pts + (time - c->last_updated)
         return ret;
     }
 }
@@ -105,7 +105,7 @@ static void do_exit(player_stat_t *is)
         SDL_DestroyRenderer(is->sdl_video.renderer);
     if (is->sdl_video.window)
         SDL_DestroyWindow(is->sdl_video.window);
-    
+
     avformat_network_deinit();
 
     SDL_Quit();
@@ -136,8 +136,7 @@ static player_stat_t *player_init(const char *p_input_file)
         goto fail;
     }
 
-    if (packet_queue_init(&is->video_pkt_queue) < 0 ||
-        packet_queue_init(&is->audio_pkt_queue) < 0)
+    if (packet_queue_init(&is->video_pkt_queue) < 0 || packet_queue_init(&is->audio_pkt_queue) < 0)
     {
         goto fail;
     }
@@ -148,7 +147,7 @@ static player_stat_t *player_init(const char *p_input_file)
     if (!(is->continue_read_thread = SDL_CreateCond()))
     {
         av_log(NULL, AV_LOG_FATAL, "SDL_CreateCond(): %s\n", SDL_GetError());
-fail:
+    fail:
         player_deinit(is);
         exit(1);
     }
@@ -168,22 +167,20 @@ fail:
     return is;
 }
 
-
 static int player_deinit(player_stat_t *is)
 {
     /* XXX: use a special url_shutdown call to abort parse cleanly */
     is->abort_request = 1;
     packet_queue_abort(&is->video_pkt_queue);
     packet_queue_abort(&is->audio_pkt_queue);
-    
+
     SDL_WaitThread(is->read_tid, NULL);
     avformat_close_input(&is->p_fmt_ctx);
 
-    
     SDL_WaitThread(is->audio_dec_tid, NULL);
     SDL_WaitThread(is->video_dec_tid, NULL);
     SDL_WaitThread(is->video_ply_tid, NULL);
-    
+
     packet_queue_destroy(&is->video_pkt_queue);
     packet_queue_destroy(&is->audio_pkt_queue);
 
@@ -200,7 +197,7 @@ static int player_deinit(player_stat_t *is)
     }
 
     av_free(is);
-    return 0; 
+    return 0;
 }
 
 /* pause or resume the video */
@@ -224,7 +221,8 @@ static void toggle_pause(player_stat_t *is)
 /* seek in the stream */
 static void stream_seek(player_stat_t *is, int64_t pos, int64_t rel)
 {
-    if (!is->seek_req) {
+    if (!is->seek_req)
+    {
         is->seek_pos = pos;
         is->seek_rel = rel;
         is->seek_req = 1;
@@ -232,15 +230,17 @@ static void stream_seek(player_stat_t *is, int64_t pos, int64_t rel)
     }
 }
 
-int time_str(double time, char *buf, int len) {
-    if (len <= strlen("hh:mm:ss.ff")) {
+int time_str(double time, char *buf, int len)
+{
+    if (len <= strlen("hh:mm:ss.ff"))
+    {
         *buf = 0;
         return -1;
     }
 
     double integer = floor(time);
     double fractional = time - integer;
-    
+
     int i = (int)integer;
     int f = (int)(100 * fractional);
     int hh = i / 3600;
@@ -252,18 +252,22 @@ int time_str(double time, char *buf, int len) {
     return snprintf(buf, len, "%02d:%02d:%02d.%02d", hh, mm, ss, f);
 }
 
-int progress_bar(double time, double total, char *buf, int len) {
-    if (len <= 60) {
+int progress_bar(double time, double total, char *buf, int len)
+{
+    if (len <= 60)
+    {
         *buf = 0;
         return -1;
     }
     int n = (int)ceil((time * 60) / total);
     int idx = 0;
-    while (idx < n - 1) {
+    while (idx < n - 1)
+    {
         buf[idx++] = '=';
     }
     buf[idx++] = '>';
-    while (idx < 60) {
+    while (idx < 60)
+    {
         buf[idx++] = '.';
     }
     buf[idx++] = 0;
@@ -284,19 +288,22 @@ int player_running(const char *p_input_file)
 
     // 文件解封装
     ret = open_demux(is);
-    if (ret < 0) {
+    if (ret < 0)
+    {
         do_exit(is);
     }
 
     // 视频解码与播放
     ret = open_video(is);
-    if (ret < 0) {
+    if (ret < 0)
+    {
         do_exit(is);
     }
 
     // 音频解码与播放
     ret = open_audio(is);
-    if (ret < 0) {
+    if (ret < 0)
+    {
         do_exit(is);
     }
 
@@ -308,7 +315,9 @@ int player_running(const char *p_input_file)
 
     char totaltime[20], playtime[20], bar[80];
     time_str(duration, totaltime, 20);
-    av_log(NULL, AV_LOG_INFO, "Control: \n\tquit:               <ESC>\n\tpause/unpause:      <SPACE>\n\tforward/backward:   <R/L/U/D>\n\n");
+    av_log(
+        NULL, AV_LOG_INFO,
+        "Control: \n\tquit:               <ESC>\n\tpause/unpause:      <SPACE>\n\tforward/backward:   <R/L/U/D>\n\n");
     while (1)
     {
         SDL_PumpEvents();
@@ -316,7 +325,8 @@ int player_running(const char *p_input_file)
         while (!SDL_PeepEvents(&event, 1, SDL_GETEVENT, SDL_FIRSTEVENT, SDL_LASTEVENT))
         {
             now = is->audio_clk.pts;
-            if (isnan(now)) {
+            if (isnan(now))
+            {
                 now = 0.0;
             }
 
@@ -329,7 +339,8 @@ int player_running(const char *p_input_file)
             SDL_PumpEvents();
         }
 
-        switch (event.type) {
+        switch (event.type)
+        {
         case SDL_KEYDOWN:
             if (event.key.keysym.sym == SDLK_ESCAPE) // ESC: 退出
             {
@@ -337,11 +348,12 @@ int player_running(const char *p_input_file)
                 break;
             }
 
-            switch (event.key.keysym.sym) {
-            case SDLK_SPACE:        // 空格键: 暂停
+            switch (event.key.keysym.sym)
+            {
+            case SDLK_SPACE: // 空格键: 暂停
                 toggle_pause(is);
                 break;
-            case SDLK_LEFT:         // 方向键: 快进快退
+            case SDLK_LEFT: // 方向键: 快进快退
                 incr = -10.0;
                 goto do_seek;
             case SDLK_RIGHT:
@@ -353,11 +365,11 @@ int player_running(const char *p_input_file)
             case SDLK_DOWN:
                 incr = -60.0;
             do_seek:
-                    pos = is->audio_clk.pts;
-                    pos += incr;
-                    if (is->start_time != AV_NOPTS_VALUE && pos < is->start_time / (double)AV_TIME_BASE)
-                        pos = is->start_time / (double)AV_TIME_BASE;
-                    stream_seek(is, (int64_t)(pos * AV_TIME_BASE), (int64_t)(incr * AV_TIME_BASE));
+                pos = is->audio_clk.pts;
+                pos += incr;
+                if (is->start_time != AV_NOPTS_VALUE && pos < is->start_time / (double)AV_TIME_BASE)
+                    pos = is->start_time / (double)AV_TIME_BASE;
+                stream_seek(is, (int64_t)(pos * AV_TIME_BASE), (int64_t)(incr * AV_TIME_BASE));
                 break;
             default:
                 break;
@@ -365,17 +377,21 @@ int player_running(const char *p_input_file)
             break;
         case SDL_WINDOWEVENT:
             // 窗口大小伸缩 -> 画面适应
-            switch (event.window.event) {
-                case SDL_WINDOWEVENT_SIZE_CHANGED:
-                    is->sdl_video.window_width = event.window.data1;
-                    is->sdl_video.window_height = event.window.data2;
-                    if (is->sdl_video.window_width * is->sdl_video.height_width_ratio < (double)is->sdl_video.window_height) {
-                        is->sdl_video.width = is->sdl_video.window_width;
-                        is->sdl_video.height = (int)(is->sdl_video.window_width * is->sdl_video.height_width_ratio);
-                    } else {
-                        is->sdl_video.height = is->sdl_video.window_height;
-                        is->sdl_video.width = (int)(is->sdl_video.window_height / is->sdl_video.height_width_ratio);
-                    }
+            switch (event.window.event)
+            {
+            case SDL_WINDOWEVENT_SIZE_CHANGED:
+                is->sdl_video.window_width = event.window.data1;
+                is->sdl_video.window_height = event.window.data2;
+                if (is->sdl_video.window_width * is->sdl_video.height_width_ratio < (double)is->sdl_video.window_height)
+                {
+                    is->sdl_video.width = is->sdl_video.window_width;
+                    is->sdl_video.height = (int)(is->sdl_video.window_width * is->sdl_video.height_width_ratio);
+                }
+                else
+                {
+                    is->sdl_video.height = is->sdl_video.window_height;
+                    is->sdl_video.width = (int)(is->sdl_video.window_height / is->sdl_video.height_width_ratio);
+                }
             }
             break;
         case SDL_QUIT:
