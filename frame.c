@@ -54,6 +54,7 @@ int frame_queue_init(frame_queue_t *f, packet_queue_t *pktq, int max_size, int k
     f->max_size = FFMIN(max_size, FRAME_QUEUE_SIZE);
 
     // !! 是双重逻辑非：把任意非零值转为 1，保证 keep_last 只有 0 或 1
+    // Note :C11标准 6.3.1.2节：将标量值转换为_Bool时，0→0，非0→1
     f->keep_last = !!keep_last;
 
     // 预先为每个槽位分配 AVFrame 结构体（只分配结构体，不分配像素数据）
