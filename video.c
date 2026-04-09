@@ -213,7 +213,7 @@ static void video_display(player_stat_t *is) {
   // 图像转换：p_frm_raw->data ==> p_frm_yuv->data
   // 将源图像中一片连续的区域经过处理后更新到目标图像对应区域，处理的图像区域必须逐行连续
   // plane: 如YUV有Y、U、V三个plane，RGB有R、G、B三个plane
-  // slice: 图像中一片连续的行，必须是连续的，顺序由顶部到底部或由底部到顶部
+  // slice: 图像中一片连续的行，必须是连续的，【顺序由顶部到底部】或【由底部到顶部】
   // stride/pitch:
   // 一行图像所占的字节数，Stride=BytesPerPixel*Width+Padding，注意对齐
   // AVFrame.*data[]: 每个数组元素指向对应plane
