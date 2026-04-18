@@ -25,12 +25,6 @@ link_directories(
 
 set(SOURCE_FILES
         main.c
-        audio.c
-        demux.c
-        frame.c
-        packet.c
-        player.c
-        video.c
 )
 
 add_executable(simpleFFplay ${SOURCE_FILES})
