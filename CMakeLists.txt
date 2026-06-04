@@ -25,6 +25,12 @@ link_directories(
 
 set(SOURCE_FILES
         main.c
+        player.c
+        player.h
+        frame.c
+        frame.h
+        packet.c
+        packet.h
 )
 
 add_executable(simpleFFplay ${SOURCE_FILES})
